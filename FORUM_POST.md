@@ -39,7 +39,7 @@ With the optimized configs, the model runs smoothly:
 
 I've uploaded the config files and setup instructions to GitHub:
 
-**🔗 [GitHub Repository Link]**
+**🔗 https://github.com/BTankut/dgx-spark-sglang-moe-configs**
 
 The repo includes:
 - Pre-tuned MoE kernel configs for GB10
