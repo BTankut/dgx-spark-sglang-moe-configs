@@ -68,6 +68,7 @@ See [MULTI_NODE_SETUP.md](MULTI_NODE_SETUP.md) for detailed instructions.
 | `E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json` | MoE up-projection config |
 | `E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json` | MoE down-projection config |
 | `MULTI_NODE_SETUP.md` | Multi-node TP=4 setup guide |
+| `TUNING.md` | **How to tune MoE kernels for other models** |
 | `FORUM_POST.md` | NVIDIA Developer Forum post template |
 
 ## Tested Configuration
@@ -107,6 +108,8 @@ python3 tuning_fused_moe_triton.py \
   --dtype fp8_w8a8 \
   --tune
 ```
+
+**Want to tune for a different model?** See [TUNING.md](TUNING.md) for the complete guide.
 
 ## Contributing
 

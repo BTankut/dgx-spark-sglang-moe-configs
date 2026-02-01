@@ -111,6 +111,7 @@ I've uploaded everything to GitHub:
 
 The repo includes:
 - Pre-tuned MoE kernel configs for GB10
+- **Step-by-step tuning guide** (for other models)
 - Complete multi-node setup guide
 - Environment variable explanations
 - Troubleshooting tips
