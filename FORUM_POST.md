@@ -92,6 +92,8 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
+  --tool-call-parser glm \
+  --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
   --speculative-num-draft-tokens 8 \

@@ -89,6 +89,8 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
+  --tool-call-parser glm \
+  --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
   --speculative-num-draft-tokens 8 \
@@ -120,6 +122,8 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
+  --tool-call-parser glm \
+  --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
   --speculative-num-draft-tokens 8 \
@@ -183,6 +187,48 @@ curl http://192.168.101.11:30000/v1/chat/completions \
 | `--speculative-num-steps` | 3 | Draft speculation steps |
 | `--speculative-num-draft-tokens` | 8 | Tokens per draft step |
 | `--context-length` | 202752 | Max context window |
+| `--tool-call-parser` | glm | Enable GLM tool calling format |
+| `--reasoning-parser` | glm45 | Enable GLM reasoning format |
+
+## Tool Calling Support
+
+GLM-4.7-FP8 supports function/tool calling via the OpenAI-compatible API. Enable it with:
+
+```bash
+--tool-call-parser glm \
+--reasoning-parser glm45
+```
+
+### Known Issue & Patch (SGLang v0.5.4)
+
+SGLang's default GLM tool parser expects newlines between XML tags, but GLM-4.7 sometimes outputs without newlines. If tool calls aren't being parsed correctly, apply this patch on **all nodes**:
+
+```bash
+# Patch the detector regex to be more flexible
+docker exec sglang_node sed -i '59s/.*/            r"<tool_call>([^<]+)(?:\\\\n|\\n|\\s*)?(.*?)<\/tool_call>", re.DOTALL/' \
+  /sgl-workspace/sglang/python/sglang/srt/function_call/glm4_moe_detector.py
+```
+
+Then restart the cluster for changes to take effect.
+
+### Testing Tool Calls
+
+```bash
+curl http://192.168.101.11:30000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "zai-org/GLM-4.7-FP8",
+    "messages": [{"role": "user", "content": "What is 25 * 4?"}],
+    "tools": [{
+      "type": "function",
+      "function": {
+        "name": "calculator",
+        "parameters": {"type": "object", "properties": {"expr": {"type": "string"}}}
+      }
+    }],
+    "max_tokens": 200
+  }'
+```
 
 ## Environment Variables Explained
 
