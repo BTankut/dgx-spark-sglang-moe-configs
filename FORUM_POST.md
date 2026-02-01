@@ -2,81 +2,140 @@
 
 ---
 
-**Title:** Running GLM-4.7-FP8 (355B MoE) on DGX Spark with SGLang - Optimized MoE Kernel Configs
+**Title:** Running GLM-4.7-FP8 (355B MoE) on 4x DGX Spark with SGLang + EAGLE Speculative Decoding
 
 ---
 
-Hi everyone! 👋
+Hi everyone!
 
-I wanted to share something that might help fellow DGX Spark owners who want to run large MoE (Mixture of Experts) models locally.
+I wanted to share my experience running **GLM-4.7-FP8** (355B parameters, 32B active) on a 4-node DGX Spark cluster. After some trial and error, I got it working smoothly with SGLang and EAGLE speculative decoding.
 
 ## The Challenge
 
-I recently tried running **GLM-4.7-FP8** (355B parameters, 32B active) on a 4-node DGX Spark cluster using SGLang. The model loaded fine, but inference would crash with this error:
+When I first tried to run GLM-4.7-FP8 on DGX Spark with SGLang, I hit this error:
 
 ```
 OutOfResources: out of resource: shared memory
 Required: 147456, Hardware limit: 101376
 ```
 
-After some digging, I found that the GB10's shared memory limit (101,376 bytes) is the same as the RTX 4090. SGLang's default MoE kernel settings exceed this limit.
+The GB10's shared memory limit (101,376 bytes) is the same as the RTX 4090. SGLang's default MoE kernel settings exceed this limit.
 
 ## The Solution
 
-I ran SGLang's MoE kernel tuning script to generate optimized configurations specifically for the GB10. The tuning took about 9 hours across 4 nodes using Ray, but the result is a set of config files that work perfectly.
+I ran SGLang's MoE kernel tuning script to generate optimized configurations specifically for the GB10. The tuning took about 9 hours across 4 nodes, but the resulting configs work perfectly.
+
+**Key insight:** The latest `lmsysorg/sglang:latest` container now includes these configs, so you may not need to install them manually.
 
 ## Results
 
-With the optimized configs, the model runs smoothly:
+With optimized configs + EAGLE speculative decoding:
 
-| Test | Speed |
-|------|-------|
-| Single request | ~13 tok/s |
-| 4 concurrent | 35 tok/s |
-| 8 concurrent | 56 tok/s |
+| Metric | Value |
+|--------|-------|
+| **Throughput** | 20-27 tok/s |
+| **Context Window** | 202,752 tokens |
+| **GPU Memory** | ~82 GB per node |
+| **GPU Utilization** | 94-95% |
 
-## Sharing the Configs
+## Hardware Setup
 
-I've uploaded the config files and setup instructions to GitHub:
+- 4x DGX Spark (GB10, 128GB each)
+- 200Gbps RoCE network (dedicated fabric)
+- Container: `lmsysorg/sglang:latest`
+
+## Network Architecture (Important!)
+
+For multi-node inference, I recommend using a **dedicated fabric network** for NCCL traffic:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              200Gbps Fabric Network                      │
+│              (NCCL/RDMA Traffic Only)                    │
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │ Node 0   │  │ Node 1   │  │ Node 2   │  │ Node 3   │ │
+│  │ .101.11  │  │ .101.12  │  │ .101.13  │  │ .101.14  │ │
+│  │ (Head)   │  │ (Worker) │  │ (Worker) │  │ (Worker) │ │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+This separates high-bandwidth GPU-to-GPU communication from regular LAN traffic.
+
+## Quick Start
+
+```bash
+# Start container on each node
+docker run -d --name sglang_node \
+  --network host --ipc=host --gpus all \
+  --ulimit memlock=-1 --ulimit stack=67108864 \
+  --device=/dev/infiniband/rdma_cm \
+  --device=/dev/infiniband/uverbs0 \
+  --device=/dev/infiniband/uverbs1 \
+  --device=/dev/infiniband/uverbs2 \
+  --device=/dev/infiniband/uverbs3 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  lmsysorg/sglang:latest sleep infinity
+
+# Launch on head node (rank 0)
+docker exec -d sglang_node bash -c '
+export NCCL_SOCKET_IFNAME=enP2p1s0f1np1
+export GLOO_SOCKET_IFNAME=enP2p1s0f1np1
+export NCCL_IB_HCA=mlx5_1
+export VLLM_HOST_IP=192.168.101.11
+
+python3 -m sglang.launch_server \
+  --model-path zai-org/GLM-4.7-FP8 \
+  --tp 4 --nnodes 4 --node-rank 0 \
+  --dist-init-addr 192.168.101.11:50000 \
+  --dist-timeout 600 \
+  --host 0.0.0.0 --port 30000 \
+  --trust-remote-code \
+  --speculative-algorithm EAGLE \
+  --speculative-num-steps 3 \
+  --speculative-num-draft-tokens 8 \
+  --speculative-eagle-topk 2 \
+  --context-length 202752 \
+  > /tmp/sglang.log 2>&1
+'
+
+# Similar for workers (change --node-rank and VLLM_HOST_IP)
+```
+
+## Config Files & Full Instructions
+
+I've uploaded everything to GitHub:
 
 **🔗 https://github.com/BTankut/dgx-spark-sglang-moe-configs**
 
 The repo includes:
 - Pre-tuned MoE kernel configs for GB10
-- Single-node setup instructions
-- Multi-node (TP=4) setup guide
-- Benchmark results
+- Complete multi-node setup guide
+- Environment variable explanations
+- Troubleshooting tips
 
-## Quick Start
+## Tips That Helped Me
 
-1. Download the config files
-2. Copy them to SGLang's config directory:
-   ```
-   .../sglang/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0/
-   ```
-3. Launch SGLang with `--disable-cuda-graph`
+1. **Use dedicated fabric network** - Separating NCCL traffic from LAN improved stability
+2. **Enable EAGLE speculative decoding** - Noticeable throughput improvement
+3. **Set `--dist-timeout 600`** - Prevents timeouts during model loading
+4. **Clean old processes** - `pkill -9 -f sglang` before restarting
 
-Full instructions are in the README.
+## Common Issues
 
-## Hardware Setup
-
-My cluster:
-- 4x DGX Spark (GB10, 128GB each)
-- 200Gbps RoCE network
-- Container: `lmsysorg/sglang:spark`
-
-## Notes
-
-- These configs are specifically tuned for `zai-org/GLM-4.7-FP8`
-- Other MoE models (Mixtral, DeepSeek, etc.) may need their own tuning
-- The tuning process is documented if you want to generate configs for other models
+| Problem | Solution |
+|---------|----------|
+| "Init torch distributed begin" hangs | Kill old sglang processes on all nodes |
+| OutOfResources error | Ensure MoE configs are in Triton directory |
+| Slow performance | Verify NCCL is using RoCE, not sockets |
 
 ## Contributing
 
-If you generate configs for other models on GB10, please share them! It would be great to build a collection of optimized configs for the DGX Spark community.
+If you generate configs for other MoE models on GB10, please share them! It would be great to build a collection for the DGX Spark community.
 
-Hope this helps someone! Happy to answer any questions.
+Hope this helps someone! Happy to answer questions.
 
 ---
 
-**Tags:** DGX Spark, GB10, SGLang, GLM-4, MoE, Inference, Optimization
+**Tags:** DGX Spark, GB10, SGLang, GLM-4, MoE, EAGLE, Multi-Node, Inference

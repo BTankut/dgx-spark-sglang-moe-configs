@@ -8,65 +8,24 @@ The GB10 GPU has a shared memory limit of **101,376 bytes** (same as RTX 4090). 
 
 These tuned configs provide optimized parameters that work within GB10's constraints.
 
-## Benchmark Results (4x DGX Spark, TP=4)
+## Benchmark Results (4x DGX Spark, TP=4, EAGLE Speculative Decoding)
 
-| Test | Tokens | Time | Speed |
-|------|--------|------|-------|
-| Single - Short (50 tok) | 50 | 4.0s | **12.5 tok/s** |
-| Single - Long (500 tok) | 500 | 38.3s | **13.1 tok/s** |
-| Single - Heavy (1000 tok) | 1000 | 75.8s | **13.2 tok/s** |
-| 2 Concurrent | 300 | 15.0s | **20.0 tok/s** |
-| 4 Concurrent | 592 | 16.9s | **35.0 tok/s** |
-| 8 Concurrent | 1200 | 21.3s | **56.4 tok/s** |
+| Metric | Value |
+|--------|-------|
+| Throughput | **20-27 tok/s** |
+| Context Window | 202,752 tokens |
+| Model Memory | ~82 GB per node |
+| GPU Utilization | 94-95% (active) |
 
 ## Quick Setup
 
-### 1. Install config files
+### 1. For Docker (lmsysorg/sglang:latest)
+
+The latest SGLang container includes these configs automatically. Just verify they're being used:
 
 ```bash
-# Find your SGLang installation path
-SGLANG_PATH=$(python3 -c "import sglang; print(sglang.__path__[0])")
-CONFIG_DIR="$SGLANG_PATH/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0"
-
-# Create directory and copy configs
-mkdir -p "$CONFIG_DIR"
-cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json "$CONFIG_DIR/"
-cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json "$CONFIG_DIR/"
-```
-
-### 2. For Docker (lmsysorg/sglang:spark)
-
-```bash
-CONFIG_DIR="/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0"
-
-docker exec sglang_node mkdir -p "$CONFIG_DIR"
-docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json sglang_node:"$CONFIG_DIR/"
-docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json sglang_node:"$CONFIG_DIR/"
-```
-
-### 3. Launch SGLang Server
-
-**Single Node (TP=1):**
-```bash
-python3 -m sglang.launch_server \
-  --model-path zai-org/GLM-4.7-FP8 \
-  --trust-remote-code \
-  --host 0.0.0.0 --port 30000 \
-  --tp 1 \
-  --attention-backend flashinfer \
-  --mem-fraction-static 0.85 \
-  --disable-cuda-graph
-```
-
-**Multi-Node (4x DGX Spark, TP=4):**
-
-See [MULTI_NODE_SETUP.md](MULTI_NODE_SETUP.md) for detailed instructions.
-
-## Verification
-
-Check that configs are being used:
-```bash
-grep "Using MoE kernel config" /tmp/sglang.log
+# Check logs for config loading
+docker exec sglang_node grep "Using MoE kernel config" /tmp/sglang.log
 ```
 
 Expected output:
@@ -75,6 +34,33 @@ Using MoE kernel config from .../E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w
 Using MoE kernel config from .../E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json
 ```
 
+### 2. Manual Installation (if needed)
+
+```bash
+# Find config directory
+CONFIG_DIR="/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0"
+
+# Copy configs
+docker exec sglang_node mkdir -p "$CONFIG_DIR"
+docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json sglang_node:"$CONFIG_DIR/"
+docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json sglang_node:"$CONFIG_DIR/"
+```
+
+### 3. Launch SGLang Server
+
+**Single Node:**
+```bash
+python3 -m sglang.launch_server \
+  --model-path zai-org/GLM-4.7-FP8 \
+  --trust-remote-code \
+  --host 0.0.0.0 --port 30000 \
+  --tp 1
+```
+
+**Multi-Node (4x DGX Spark, TP=4) with EAGLE Speculative Decoding:**
+
+See [MULTI_NODE_SETUP.md](MULTI_NODE_SETUP.md) for detailed instructions.
+
 ## Files
 
 | File | Description |
@@ -82,15 +68,33 @@ Using MoE kernel config from .../E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w
 | `E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json` | MoE up-projection config |
 | `E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json` | MoE down-projection config |
 | `MULTI_NODE_SETUP.md` | Multi-node TP=4 setup guide |
+| `FORUM_POST.md` | NVIDIA Developer Forum post template |
 
 ## Tested Configuration
 
 - **Hardware:** 4x NVIDIA DGX Spark (GB10, 128GB each)
-- **Network:** 200Gbps RoCE/RDMA
-- **Container:** `lmsysorg/sglang:spark`
+- **Network:** 200Gbps RoCE/RDMA (dedicated fabric network)
+- **Container:** `lmsysorg/sglang:latest`
 - **Model:** `zai-org/GLM-4.7-FP8` (355B MoE, 32B active params)
-- **Triton:** 3.5.0
-- **PyTorch:** 2.9.0+cu130
+- **Features:** EAGLE Speculative Decoding enabled
+- **Context Length:** 202,752 tokens
+
+## Network Architecture
+
+For optimal multi-node performance, use a **dedicated fabric network** for NCCL traffic:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              200Gbps Fabric Network                      │
+│              (NCCL/RDMA Traffic)                         │
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │ Node 0   │  │ Node 1   │  │ Node 2   │  │ Node 3   │ │
+│  │ .101.11  │  │ .101.12  │  │ .101.13  │  │ .101.14  │ │
+│  │ (Head)   │  │ (Worker) │  │ (Worker) │  │ (Worker) │ │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## How these configs were generated
 
@@ -106,13 +110,13 @@ python3 tuning_fused_moe_triton.py \
 
 ## Contributing
 
-If you generate configs for other models on GB10, please share them!
+If you generate configs for other MoE models on GB10, please share them!
 
 ## References
 
-- [SGLang MoE Tuning Guide](https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton)
+- [SGLang Project](https://github.com/sgl-project/sglang)
 - [DGX Spark SGLang Playbook](https://github.com/NVIDIA/dgx-spark-playbooks/tree/main/nvidia/sglang)
-- [Triton Shared Memory Issue](https://github.com/triton-lang/triton/issues/8182)
+- [GLM-4.7-FP8 Model](https://huggingface.co/zai-org/GLM-4.7-FP8)
 
 ## License
 
@@ -120,4 +124,4 @@ MIT
 
 ---
 
-*Tested and working as of January 2026*
+*Tested and working as of February 2026*
