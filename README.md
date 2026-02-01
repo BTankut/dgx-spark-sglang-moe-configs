@@ -126,7 +126,6 @@ See [TUNING.md](TUNING.md) for tuning other models.
 - [SGLang Project](https://github.com/sgl-project/sglang)
 - [DGX Spark Playbooks](https://github.com/NVIDIA/dgx-spark-playbooks)
 - [GLM-4.7-FP8 Model](https://huggingface.co/zai-org/GLM-4.7-FP8)
-- [spark-vllm-docker](https://github.com/eugr/spark-vllm-docker) - Similar approach for vLLM
 
 ## License
 
