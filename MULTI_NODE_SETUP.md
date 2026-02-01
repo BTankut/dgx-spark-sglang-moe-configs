@@ -28,10 +28,10 @@ Complete guide for running GLM-4.7-FP8 across 4 DGX Spark nodes with Tensor Para
 
 | Node | Fabric IP | LAN IP | Role |
 |------|-----------|--------|------|
-| Node 0 | 192.168.101.11 | 192.168.12.243 | Head (rank 0) |
-| Node 1 | 192.168.101.12 | 192.168.12.236 | Worker (rank 1) |
-| Node 2 | 192.168.101.13 | 192.168.12.234 | Worker (rank 2) |
-| Node 3 | 192.168.101.14 | 192.168.12.235 | Worker (rank 3) |
+| Node 0 | 192.168.101.11 | 10.0.0.11 | Head (rank 0) |
+| Node 1 | 192.168.101.12 | 10.0.0.12 | Worker (rank 1) |
+| Node 2 | 192.168.101.13 | 10.0.0.13 | Worker (rank 2) |
+| Node 3 | 192.168.101.14 | 10.0.0.14 | Worker (rank 3) |
 
 > **Note:** Adjust IPs to match your network. The fabric interface is typically `enP2p1s0f1np1` on DGX Spark.
 
