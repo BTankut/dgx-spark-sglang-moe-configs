@@ -89,7 +89,7 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
-  --tool-call-parser glm \
+  --tool-call-parser glm47 \
   --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
@@ -122,7 +122,7 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
-  --tool-call-parser glm \
+  --tool-call-parser glm47 \
   --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
@@ -194,29 +194,28 @@ curl http://192.168.101.11:30000/v1/chat/completions \
 
 GLM-4.7-FP8 supports function/tool calling via the OpenAI-compatible API.
 
-### SGLang vs vLLM Parser Differences
+### Parser Configuration
 
-The parser flag names differ between frameworks:
-
-| Framework | Tool Parser | Reasoning Parser | Extra Flags |
-|-----------|-------------|------------------|-------------|
-| **SGLang** | `glm` | `glm45` | - |
-| **vLLM** | `glm47` | `glm45` | `--enable-auto-tool-choice` |
-
-For SGLang (this guide), use:
-
-```bash
---tool-call-parser glm \
---reasoning-parser glm45
-```
-
-For vLLM, use:
+Both SGLang and vLLM use the same parser for GLM-4.7:
 
 ```bash
 --tool-call-parser glm47 \
---reasoning-parser glm45 \
---enable-auto-tool-choice
+--reasoning-parser glm45
 ```
+
+vLLM additionally supports `--enable-auto-tool-choice`.
+
+### SGLang Version Requirements
+
+The `glm47` parser requires **SGLang v0.5.5+**. Check your version:
+
+```bash
+docker exec sglang_node pip show sglang | grep Version
+```
+
+If you're on v0.5.4.x, either:
+1. **Update container** to `lmsysorg/sglang:latest` (recommended)
+2. **Use fallback** `--tool-call-parser glm` (older parser, may need patch below)
 
 ### Known Issue & Patch (SGLang v0.5.4)
 
