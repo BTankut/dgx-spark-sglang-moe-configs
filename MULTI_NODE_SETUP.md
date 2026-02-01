@@ -192,11 +192,30 @@ curl http://192.168.101.11:30000/v1/chat/completions \
 
 ## Tool Calling Support
 
-GLM-4.7-FP8 supports function/tool calling via the OpenAI-compatible API. Enable it with:
+GLM-4.7-FP8 supports function/tool calling via the OpenAI-compatible API.
+
+### SGLang vs vLLM Parser Differences
+
+The parser flag names differ between frameworks:
+
+| Framework | Tool Parser | Reasoning Parser | Extra Flags |
+|-----------|-------------|------------------|-------------|
+| **SGLang** | `glm` | `glm45` | - |
+| **vLLM** | `glm47` | `glm45` | `--enable-auto-tool-choice` |
+
+For SGLang (this guide), use:
 
 ```bash
 --tool-call-parser glm \
 --reasoning-parser glm45
+```
+
+For vLLM, use:
+
+```bash
+--tool-call-parser glm47 \
+--reasoning-parser glm45 \
+--enable-auto-tool-choice
 ```
 
 ### Known Issue & Patch (SGLang v0.5.4)

@@ -120,6 +120,7 @@ If you generate configs for other MoE models on GB10, please share them!
 - [SGLang Project](https://github.com/sgl-project/sglang)
 - [DGX Spark SGLang Playbook](https://github.com/NVIDIA/dgx-spark-playbooks/tree/main/nvidia/sglang)
 - [GLM-4.7-FP8 Model](https://huggingface.co/zai-org/GLM-4.7-FP8)
+- [GLM-4.7-Flash vLLM Guide](https://forums.developer.nvidia.com/t/glm-4-7-flash-on-pgx-dgx-vllm-guide/358874) - Alternative setup using vLLM
 
 ## License
 
