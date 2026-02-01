@@ -12,21 +12,31 @@ The GB10 GPU has a shared memory limit of **101,376 bytes**. SGLang's default Mo
 
 ## Quick Start
 
-### Option 1: Build from Dockerfile (Recommended)
+### Option 1: Pull Pre-built Image (Fastest)
 
 ```bash
-# Clone repo
+docker pull ghcr.io/btankut/sglang-spark-glm47:latest
+
+docker run -d --name sglang_node \
+  --network host --ipc=host --gpus all \
+  --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  ghcr.io/btankut/sglang-spark-glm47:latest
+```
+
+### Option 2: Build from Dockerfile
+
+```bash
 git clone https://github.com/BTankut/dgx-spark-glm47-config.git
 cd dgx-spark-glm47-config
 
-# Build image
 docker build -t sglang-spark-glm47 .
 
-# Deploy to all nodes (builds + transfers)
+# Deploy to all nodes
 ./build-and-deploy.sh --deploy
 ```
 
-### Option 2: Use Base Image + Manual Setup
+### Option 3: Use Base Image + Manual Setup
 
 ```bash
 # Start container
