@@ -37,6 +37,8 @@ Complete guide for running GLM-4.7-FP8 across 4 DGX Spark nodes with Tensor Para
 
 ## Step 1: Start Containers (All Nodes)
 
+**IMPORTANT:** Use `lmsysorg/sglang:spark` container - the standard `:latest` does NOT work on GB10.
+
 Run on each node with RDMA support:
 
 ```bash
@@ -46,14 +48,34 @@ docker run -d --name sglang_node \
   --gpus all \
   --ulimit memlock=-1 \
   --ulimit stack=67108864 \
-  --device=/dev/infiniband/rdma_cm \
   --device=/dev/infiniband/uverbs0 \
   --device=/dev/infiniband/uverbs1 \
   --device=/dev/infiniband/uverbs2 \
   --device=/dev/infiniband/uverbs3 \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
-  lmsysorg/sglang:latest sleep infinity
+  lmsysorg/sglang:spark sleep infinity
 ```
+
+> **Note:** `/dev/infiniband/rdma_cm` may not exist on all systems - remove if not present.
+
+## Step 1.5: Install MoE Kernel Configs (REQUIRED)
+
+The spark container does NOT include GB10 MoE kernel configs. You MUST copy them to ALL nodes:
+
+```bash
+# On each node, create config directory and copy files
+CONFIG_DIR="/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0"
+
+for node in dgxnode1 dgxnode2 dgxnode3 dgxnode4; do
+  ssh $node "docker exec sglang_node mkdir -p $CONFIG_DIR"
+  scp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json $node:/tmp/
+  scp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json $node:/tmp/
+  ssh $node "docker cp /tmp/E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json sglang_node:$CONFIG_DIR/"
+  ssh $node "docker cp /tmp/E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json sglang_node:$CONFIG_DIR/"
+done
+```
+
+Without these configs, you will get `OutOfResources: shared memory, Required: 147456, Hardware limit: 101376` errors.
 
 ## Step 2: Environment Variables
 
@@ -89,7 +111,7 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
-  --tool-call-parser glm47 \
+  --tool-call-parser glm \
   --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
@@ -122,7 +144,7 @@ python3 -m sglang.launch_server \
   --dist-timeout 600 \
   --host 0.0.0.0 --port 30000 \
   --trust-remote-code \
-  --tool-call-parser glm47 \
+  --tool-call-parser glm \
   --reasoning-parser glm45 \
   --speculative-algorithm EAGLE \
   --speculative-num-steps 3 \
@@ -196,26 +218,22 @@ GLM-4.7-FP8 supports function/tool calling via the OpenAI-compatible API.
 
 ### Parser Configuration
 
-Both SGLang and vLLM use the same parser for GLM-4.7:
+For `sglang:spark` container (v0.5.4, required for GB10):
 
 ```bash
---tool-call-parser glm47 \
+--tool-call-parser glm \
 --reasoning-parser glm45
 ```
 
-vLLM additionally supports `--enable-auto-tool-choice`.
-
-### SGLang Version Requirements
-
-The `glm47` parser requires **SGLang v0.5.5+**. Check your version:
+For vLLM or SGLang v0.5.5+:
 
 ```bash
-docker exec sglang_node pip show sglang | grep Version
+--tool-call-parser glm47 \
+--reasoning-parser glm45 \
+--enable-auto-tool-choice  # vLLM only
 ```
 
-If you're on v0.5.4.x, either:
-1. **Update container** to `lmsysorg/sglang:latest` (recommended)
-2. **Use fallback** `--tool-call-parser glm` (older parser, may need patch below)
+> **Note:** The `glm47` parser is not available in `sglang:spark` (v0.5.4). Use `glm` instead.
 
 ### Known Issue & Patch (SGLang v0.5.4)
 

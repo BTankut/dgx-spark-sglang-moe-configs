@@ -19,32 +19,36 @@ These tuned configs provide optimized parameters that work within GB10's constra
 
 ## Quick Setup
 
-### 1. For Docker (lmsysorg/sglang:latest)
+### 1. Use the Spark Container (REQUIRED for GB10)
 
-The latest SGLang container includes these configs automatically. Just verify they're being used:
-
-```bash
-# Check logs for config loading
-docker exec sglang_node grep "Using MoE kernel config" /tmp/sglang.log
-```
-
-Expected output:
-```
-Using MoE kernel config from .../E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json
-Using MoE kernel config from .../E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json
-```
-
-### 2. Manual Installation (if needed)
+**IMPORTANT:** You MUST use `lmsysorg/sglang:spark` container for DGX Spark (GB10). The standard `:latest` container does NOT work because `sgl-kernel` is not compiled for sm_121 architecture.
 
 ```bash
-# Find config directory
+docker run -d --name sglang_node \
+  --network host --ipc=host --gpus all \
+  --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  lmsysorg/sglang:spark sleep infinity
+```
+
+### 2. Install MoE Kernel Configs (REQUIRED)
+
+The spark container does NOT include these configs by default. You must copy them manually:
+
+```bash
+# Create config directory (spark container uses Triton 3.5.0)
 CONFIG_DIR="/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/configs/triton_3_5_0"
+docker exec sglang_node mkdir -p "$CONFIG_DIR"
 
 # Copy configs
-docker exec sglang_node mkdir -p "$CONFIG_DIR"
 docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json sglang_node:"$CONFIG_DIR/"
 docker cp E=160,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8_down.json sglang_node:"$CONFIG_DIR/"
+
+# Verify
+docker exec sglang_node ls -la "$CONFIG_DIR"
 ```
+
+Without these configs, you will get `OutOfResources: shared memory` errors.
 
 ### 3. Launch SGLang Server
 
@@ -75,10 +79,18 @@ See [MULTI_NODE_SETUP.md](MULTI_NODE_SETUP.md) for detailed instructions.
 
 - **Hardware:** 4x NVIDIA DGX Spark (GB10, 128GB each)
 - **Network:** 200Gbps RoCE/RDMA (dedicated fabric network)
-- **Container:** `lmsysorg/sglang:latest`
+- **Container:** `lmsysorg/sglang:spark` (v0.5.4.post2, sgl-kernel 0.3.16.post5)
 - **Model:** `zai-org/GLM-4.7-FP8` (355B MoE, 32B active params)
 - **Features:** EAGLE Speculative Decoding enabled
 - **Context Length:** 202,752 tokens
+
+### Why `sglang:spark` instead of `sglang:latest`?
+
+The standard `:latest` container fails on GB10 with:
+- `ptxas fatal: Value 'sm_121a' is not defined` (Triton issue)
+- `no kernel image is available for execution` (sgl-kernel not compiled for sm_121)
+
+The `:spark` container includes GB10-specific builds of `sgl-kernel` that support sm_121 architecture.
 
 ## Network Architecture
 
