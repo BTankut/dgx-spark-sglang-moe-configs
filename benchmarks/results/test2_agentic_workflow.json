@@ -1,0 +1,72 @@
+[
+  {
+    "turn": 1,
+    "approx_tokens": 42,
+    "ttft_ms": 808.9,
+    "decode_toks": 8.74,
+    "tool_ok": true
+  },
+  {
+    "turn": 2,
+    "approx_tokens": 120,
+    "ttft_ms": 782.0,
+    "decode_toks": 7.18,
+    "tool_ok": true
+  },
+  {
+    "turn": 3,
+    "approx_tokens": 305,
+    "ttft_ms": 1384.3,
+    "decode_toks": 7.24,
+    "tool_ok": true
+  },
+  {
+    "turn": 4,
+    "approx_tokens": 901,
+    "ttft_ms": 750.8,
+    "decode_toks": 9.44,
+    "tool_ok": true
+  },
+  {
+    "turn": 5,
+    "approx_tokens": 994,
+    "ttft_ms": 382.7,
+    "decode_toks": 7.8,
+    "tool_ok": true
+  },
+  {
+    "turn": 6,
+    "approx_tokens": 1826,
+    "ttft_ms": 2179.7,
+    "decode_toks": 7.43,
+    "tool_ok": true
+  },
+  {
+    "turn": 7,
+    "approx_tokens": 1918,
+    "ttft_ms": 1408.0,
+    "decode_toks": 7.09,
+    "tool_ok": true
+  },
+  {
+    "turn": 8,
+    "approx_tokens": 3142,
+    "ttft_ms": 0,
+    "decode_toks": 0,
+    "tool_ok": false
+  },
+  {
+    "turn": 9,
+    "approx_tokens": 3212,
+    "ttft_ms": 0,
+    "decode_toks": 0,
+    "tool_ok": false
+  },
+  {
+    "turn": 10,
+    "approx_tokens": 3283,
+    "ttft_ms": 0,
+    "decode_toks": 0,
+    "tool_ok": false
+  }
+]

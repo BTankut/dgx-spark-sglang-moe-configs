@@ -1,0 +1,30 @@
+[
+  {
+    "context_length": 1024,
+    "ttft_ms": 192.7,
+    "eagle_off_toks": 16.89,
+    "eagle_on_toks": 7.58,
+    "speedup": 0.45
+  },
+  {
+    "context_length": 4096,
+    "ttft_ms": 168.4,
+    "eagle_off_toks": 16.48,
+    "eagle_on_toks": 7.41,
+    "speedup": 0.45
+  },
+  {
+    "context_length": 16384,
+    "ttft_ms": 159.5,
+    "eagle_off_toks": 15.28,
+    "eagle_on_toks": 6.99,
+    "speedup": 0.46
+  },
+  {
+    "context_length": 32768,
+    "ttft_ms": 184.2,
+    "eagle_off_toks": 14.05,
+    "eagle_on_toks": 6.54,
+    "speedup": 0.47
+  }
+]

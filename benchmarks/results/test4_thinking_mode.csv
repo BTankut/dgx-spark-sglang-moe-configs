@@ -1,0 +1,4 @@
+mode,ttft_ms,total_ms,decode_toks,tool_calls,correct,reasoning_tokens
+Thinking OFF,698.6,2048.2,8.89,1,True,0
+Thinking ON,111.6,3147.9,7.9,1,True,0
+Preserved Thinking,119.4,3125.6,8.32,1,True,54

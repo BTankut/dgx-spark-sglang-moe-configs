@@ -1,0 +1,29 @@
+[
+  {
+    "mode": "Thinking OFF",
+    "ttft_ms": 698.6,
+    "total_ms": 2048.2,
+    "decode_toks": 8.89,
+    "tool_calls": 1,
+    "correct": true,
+    "reasoning_tokens": 0
+  },
+  {
+    "mode": "Thinking ON",
+    "ttft_ms": 111.6,
+    "total_ms": 3147.9,
+    "decode_toks": 7.9,
+    "tool_calls": 1,
+    "correct": true,
+    "reasoning_tokens": 0
+  },
+  {
+    "mode": "Preserved Thinking",
+    "ttft_ms": 119.4,
+    "total_ms": 3125.6,
+    "decode_toks": 8.32,
+    "tool_calls": 1,
+    "correct": true,
+    "reasoning_tokens": 54
+  }
+]

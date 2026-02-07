@@ -1,0 +1,24 @@
+{
+  "label": "TestB_without_MoE_configs",
+  "results": [
+    {
+      "round": 1,
+      "tokens": 4096,
+      "time_s": 259.6853744159962,
+      "tok_per_s": 15.77293295477827
+    },
+    {
+      "round": 2,
+      "tokens": 4096,
+      "time_s": 259.7798258860057,
+      "tok_per_s": 15.767198188043173
+    },
+    {
+      "round": 3,
+      "tokens": 4096,
+      "time_s": 259.72791683200194,
+      "tok_per_s": 15.770349410107455
+    }
+  ],
+  "avg_tok_per_s": 15.770160184309631
+}
