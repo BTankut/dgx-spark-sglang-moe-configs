@@ -137,5 +137,5 @@ Active weights: ~32 GB (FP8)
 
 ---
 
-*All benchmark scripts and CSV results are in `/home/btankut/sm121-kernels/results/`*
+*All benchmark scripts and CSV results are in `benchmarks/results/`*
 *Production config: EAGLE ON + glm47 parser + MoE configs + TP=4*
